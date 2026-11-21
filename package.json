@@ -1,0 +1,18 @@
+{
+  "name": "ai-task-desk",
+  "version": "1.0.0",
+  "description": "A personal task list where you can hand tasks to an AI agent (Claude Code), with approval rules, undo, and Telegram alerts. No npm dependencies.",
+  "license": "MIT",
+  "private": true,
+  "author": "Jack Bonner",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "setup": "node setup.js",
+    "doctor": "node setup.js --check",
+    "start": "node start.js",
+    "web": "node server.js",
+    "worker": "node worker.js",
+    "demo": "DEMO=1 node server.js",
+    "test": "node --test \"test/*.test.js\""
+  }
+}

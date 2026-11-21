@@ -1,0 +1,8 @@
+// Example pm2 config. Copy to ecosystem.config.js and adjust paths.
+// Use the same Node (22.13+) that you used to run `npm run setup`.
+module.exports = {
+  apps: [
+    { name: 'ai-task-desk', script: 'server.js', cwd: __dirname, env: { PORT: 3025 } },
+    { name: 'ai-task-desk-worker', script: 'worker.js', cwd: __dirname, kill_timeout: 10000 }, // leave this one out for a demo
+  ],
+};

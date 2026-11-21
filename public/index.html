@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#7c3aed">
+  <title>AI Task Desk</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="blob blob-a"></div>
+  <div class="blob blob-b"></div>
+  <div class="blob blob-c"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <main id="login" hidden>
+    <div class="login-card">
+      <div class="login-emoji" aria-hidden="true">🗂️</div>
+      <h1>AI Task Desk</h1>
+      <p id="loginNote" class="login-note"></p>
+      <form id="loginForm">
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit" class="go">Sign in</button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+      <form id="setupForm" hidden>
+        <label>Choose a password (12+ characters) <input name="password" type="password" minlength="12" autocomplete="new-password" required></label>
+        <button type="submit" class="go">Create password</button>
+        <p id="setupError" class="error" role="alert"></p>
+      </form>
+    </div>
+  </main>
+
+  <div id="demoBar" class="demo-bar" hidden>
+    <span><b>Live demo.</b> The agent here is simulated: no AI is called and nothing runs on a computer. Your data is private to you and is deleted when you leave.</span>
+    <span class="demo-actions">
+      <a id="demoRepo" class="demo-link" href="#" target="_blank" rel="noopener">Get the code</a>
+      <button id="demoReset" type="button" class="glass">Reset demo</button>
+    </span>
+  </div>
+
+  <main id="app" hidden>
+    <header class="hero">
+      <div class="hero-top">
+        <div>
+          <p id="greeting" class="greeting"></p>
+          <h1>AI Task Desk</h1>
+          <p id="today" class="date"></p>
+        </div>
+        <div class="header-actions">
+          <button id="briefingBtn" type="button" class="glass">Briefing preview</button>
+          <button id="settingsBtn" type="button" class="glass">Settings</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="tile t-open"><b id="stOpen">0</b><span>Open</span></div>
+        <div class="tile t-today"><b id="stToday">0</b><span>Due today</span></div>
+        <div class="tile t-over"><b id="stOver">0</b><span>Overdue</span></div>
+        <div class="tile t-done"><b id="stDone">0</b><span>Done (24h)</span></div>
+      </div>
+
+      <div class="momentum">
+        <div class="bar"><div id="barFill"></div></div>
+        <p id="momentumText"></p>
+      </div>
+
+      <div class="chips-row">
+        <span id="needsChip" class="pill needs" hidden></span>
+        <span id="agentChip" class="pill" hidden></span>
+        <span id="usage5h" class="pill" hidden></span>
+        <span id="usage7d" class="pill" hidden></span>
+      </div>
+      <div id="pauseBanner" class="banner" hidden></div>
+      <div id="workerBanner" class="banner" hidden>The agent worker is not running, so agent tasks will wait until it is back.</div>
+    </header>
+
+    <form id="addForm" class="card add-card">
+      <div class="row">
+        <input id="addTitle" name="title" placeholder="What needs doing?" maxlength="200" autocomplete="off" required>
+        <button type="submit" class="go">Add ✨</button>
+      </div>
+      <div class="row wrap">
+        <label>Due <input type="date" name="due"></label>
+        <label>Priority
+          <select name="priority"><option value="normal">Normal</option><option value="high">High 🔥</option><option value="low">Low</option></select>
+        </label>
+        <label>Who does it
+          <select name="owner"><option value="me">Me</option><option value="agent">Agent 🤖</option></select>
+        </label>
+      </div>
+      <textarea name="notes" placeholder="Notes (optional)" rows="2" maxlength="5000"></textarea>
+      <div class="row wrap attach-row">
+        <label class="filebtn">📎 Add file
+          <input id="addFiles" type="file" multiple accept="image/*,application/pdf,text/plain,text/markdown" hidden>
+        </label>
+        <span class="muted small-hint">or paste a screenshot, or drop a file here</span>
+      </div>
+      <div id="addPreview" class="thumbs"></div>
+      <p id="addError" class="error" role="alert"></p>
+    </form>
+
+    <nav id="tabs">
+      <button data-tab="open" class="active" type="button">Open</button>
+      <button data-tab="done" type="button">Done</button>
+      <button data-tab="archived" type="button">Archived</button>
+      <button data-tab="activity" type="button">Activity</button>
+    </nav>
+    <div id="weekBar" hidden></div>
+
+    <section id="list"></section>
+  </main>
+
+  <dialog id="editDialog">
+    <form id="editForm" method="dialog">
+      <h2>Edit task</h2>
+      <label>Title <input name="title" maxlength="200" required></label>
+      <label>Notes <textarea name="notes" rows="4" maxlength="5000"></textarea></label>
+      <div class="row wrap">
+        <label>Due <input type="date" name="due"></label>
+        <label>Priority
+          <select name="priority"><option value="normal">Normal</option><option value="high">High 🔥</option><option value="low">Low</option></select>
+        </label>
+        <label>Who does it
+          <select name="owner"><option value="me">Me</option><option value="agent">Agent 🤖</option></select>
+        </label>
+      </div>
+      <div id="editFiles" class="thumbs"></div>
+      <div class="row wrap attach-row">
+        <label class="filebtn">📎 Add file
+          <input id="editAddFile" type="file" multiple accept="image/*,application/pdf,text/plain,text/markdown" hidden>
+        </label>
+      </div>
+      <p id="editError" class="error" role="alert"></p>
+      <div class="row end">
+        <button type="button" id="editCancel">Cancel</button>
+        <button type="submit" class="go">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <h2>Settings</h2>
+    <p id="demoSettingsNote" class="muted" hidden>Settings are switched off in the live demo. When you run AI Task Desk yourself, this is where you change your password and connect Telegram alerts.</p>
+    <form id="passwordForm">
+      <h3>Password</h3>
+      <label id="currentPwLabel">Current password <input name="current" type="password" autocomplete="current-password"></label>
+      <label>New password (12+ characters) <input name="password" type="password" minlength="12" autocomplete="new-password" required></label>
+      <button type="submit">Save password</button>
+      <p id="passwordMsg" role="status"></p>
+    </form>
+    <hr id="settingsHr">
+    <div id="telegramBox">
+      <h3>Telegram alerts</h3>
+      <p id="tgStatus" class="muted"></p>
+      <form id="tgTokenForm">
+        <label>Bot token (from BotFather) <input name="token" type="password" autocomplete="off" placeholder="123456789:ABC..."></label>
+        <button type="submit">Save token</button>
+      </form>
+      <div class="row wrap" style="margin-top:8px">
+        <button id="tgConnectBtn" type="button">Connect Telegram</button>
+        <button id="tgTestBtn" type="button">Send test message</button>
+        <button id="tgDisconnectBtn" type="button">Disconnect</button>
+      </div>
+      <p id="tgMsg" role="status"></p>
+      <h3 style="margin-top:14px">Daily briefing</h3>
+      <p class="muted">A summary of your day, sent to the same Telegram.</p>
+      <form id="briefForm" class="row wrap">
+        <label class="check"><input type="checkbox" name="enabled"> Send every morning</label>
+        <label>Time (<span id="tzName">your time zone</span>) <input type="time" name="time" value="09:00"></label>
+        <button type="submit">Save</button>
+        <button id="briefNowBtn" type="button">Send one now</button>
+      </form>
+      <p id="briefMsg" role="status"></p>
+    </div>
+    <hr>
+    <hr>
+    <div class="row end">
+      <button id="logoutBtn" type="button" hidden>Sign out</button>
+      <button id="settingsClose" type="button">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="briefingDialog">
+    <h2>Briefing preview</h2>
+    <p class="muted">This is the message your morning briefing sends to Telegram.</p>
+    <pre id="briefingOut"></pre>
+    <div class="row end"><button id="briefingClose" type="button">Close</button></div>
+  </dialog>
+
+  <dialog id="runDialog">
+    <h2 id="runTitle">Agent run</h2>
+    <p id="runMeta" class="muted"></p>
+    <div id="runSummary" class="run-summary"></div>
+    <h3>Files the agent changed</h3>
+    <div id="runChanges" class="run-changes"></div>
+    <div class="row wrap"><button id="runUndoBtn" type="button" hidden>Undo these file changes</button></div>
+    <h3>What happened</h3>
+    <div id="runLog" class="run-log"></div>
+    <div class="row end"><button id="runClose" type="button">Close</button></div>
+  </dialog>
+
+  <dialog id="viewDialog" class="viewer">
+    <img id="viewImg" alt="">
+    <div class="row end"><a id="viewOpen" href="#" target="_blank" rel="noopener">Open full size</a><button id="viewClose" type="button">Close</button></div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
