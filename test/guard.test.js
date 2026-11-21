@@ -88,6 +88,16 @@ test("the app's own files cannot be edited", () => {
   assert.equal(guard('Write', { file_path: path.join(ROOT, 'agent', 'rulebook.md') }).decision, 'deny');
 });
 
+test("the app's own files stay protected even if a bigger folder that contains the app is allowed", () => {
+  fs.writeFileSync(path.join(runDir, 'grants.json'), '[]');
+  const r = cp.spawnSync(process.execPath, [path.join(ROOT, 'agent', 'guard.js')], {
+    input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: path.join(ROOT, 'server.js') }, cwd: workspace }),
+    env: { ...process.env, DD_RUN_DIR: runDir, DD_ROOT: ROOT, DD_DATA_DIR: path.join(work, 'data'), DD_ALLOWED_DIRS: [workspace, path.dirname(ROOT)].join(path.delimiter) },
+    encoding: 'utf8',
+  });
+  assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, 'deny');
+});
+
 test('edits are backed up so they can be undone', () => {
   const f = path.join(workspace, 'edit-me.txt');
   fs.writeFileSync(f, 'original');

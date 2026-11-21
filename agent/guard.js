@@ -60,7 +60,10 @@ const SECRET_PATHS = [
 const isSecretPath = (p) => SECRET_PATHS.some((re) => re.test(p));
 
 // The app's own code, database and settings are off limits for writing (the workspace folder inside it is fine).
-const isProtectedWrite = (p) => (under(p, APP_ROOT) || under(p, DATA_DIR)) && !ALLOWED_DIRS.some((d) => under(p, d)) && !(RUN_DIR && under(p, RUN_DIR));
+// Only an allowed folder that sits INSIDE the app (the default ./workspace) is exempt. A bigger allowed folder that happens
+// to contain the app (like /tmp or your projects folder) must not unprotect it.
+const nestedAllowed = ALLOWED_DIRS.filter((d) => under(d, APP_ROOT) || under(d, DATA_DIR));
+const isProtectedWrite = (p) => (under(p, APP_ROOT) || under(p, DATA_DIR)) && !nestedAllowed.some((d) => under(p, d)) && !(RUN_DIR && under(p, RUN_DIR));
 
 const SYSTEM_DIRS = /^\/(etc|usr|boot|sys|proc|dev|root|var\/lib|var\/log|bin|sbin|lib|lib64)(\/|$)/;
 
