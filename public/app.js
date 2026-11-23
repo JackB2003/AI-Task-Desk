@@ -238,6 +238,7 @@ async function init() {
     $('#logoutBtn').hidden = me.via !== 'session';
     $('#currentPwLabel').hidden = false;
     await render({ animate: true });
+    refreshAi();
   } catch (e) {
     if (e.status === 401) {
       $('#app').hidden = true;
@@ -697,6 +698,7 @@ function runPanel(t) {
 }
 
 async function workOn(t) {
+  if (state.ai && !state.ai.installed) { openAi(); return; } // no AI connected yet: show how, instead of failing
   await act('POST', `api/tasks/${t.id}/work`, {});
 }
 
@@ -825,6 +827,79 @@ $('#briefNowBtn').addEventListener('click', async () => {
 });
 $('#tgTestBtn').addEventListener('click', () => tgDo('api/telegram/test', {}, 'Test message sent. Check Telegram.'));
 $('#tgDisconnectBtn').addEventListener('click', () => { if (confirm('Disconnect Telegram? Alerts stop until you set it up again.')) tgDo('api/telegram/disconnect', {}, 'Disconnected.'); });
+
+// ---------- AI connection ----------
+
+async function refreshAi() {
+  try {
+    state.ai = await api('GET', 'api/ai/status');
+    const a = state.ai;
+    $('#aiBanner').hidden = a.installed;
+    const dot = $('#aiDot');
+    dot.className = `ai-dot ${!a.installed ? 'bad' : a.tested && !a.tested.ok ? 'warn' : a.tested ? 'ok' : 'idle'}`;
+    return a;
+  } catch { return null; }
+}
+
+function aiCheck(state_, text, sub) {
+  const icon = { ok: '✅', bad: '❌', warn: '⚠️', idle: '⚪' }[state_];
+  return el('li', { class: `ai-check ${state_}` }, el('span', { class: 'ai-icon', 'aria-hidden': 'true' }, icon), el('div', {}, el('div', { class: 'ai-text' }, text), sub ? el('div', { class: 'muted small-hint' }, sub) : ''));
+}
+
+function renderAi(a) {
+  $('#aiDemoNote').hidden = !a.demo;
+  const list = $('#aiChecks');
+  list.replaceChildren(
+    a.installed
+      ? aiCheck('ok', 'Claude Code is installed', a.demo ? 'Simulated in the demo' : a.version)
+      : aiCheck('bad', 'Claude Code was not found', 'It is the program that does the work. Install steps below.'),
+    !a.installed ? aiCheck('idle', 'Connection not tested', 'Install Claude Code first.')
+      : !a.tested ? aiCheck('idle', 'Connection not tested yet', 'Press "Test connection". It sends one tiny request (about 500 tokens).')
+        : a.tested.ok ? aiCheck('ok', a.tested.simulated ? 'Connection works (simulated)' : 'Connection works', `Tested ${new Date(a.tested.at).toLocaleString()}`)
+          : aiCheck('warn', 'The last test failed', a.tested.why),
+    a.mode === 'api'
+      ? aiCheck(a.apiKeySet ? 'ok' : 'bad', 'Pays with: your Anthropic API key', a.apiKeySet ? 'Key found. Billed per use by Anthropic.' : 'AGENT_AUTH=api is set, but no ANTHROPIC_API_KEY was found. Run npm run setup.')
+      : aiCheck('ok', 'Pays with: your Claude subscription', 'Uses the login from running "claude" once.'),
+    a.worker_ok ? aiCheck('ok', 'Agent worker is running') : aiCheck('bad', 'Agent worker is not running', 'Start everything with: npm start'),
+    aiCheck('idle', `Workspace: ${a.workspace}`, 'The folder the agent works in. Anything outside it needs your approval.'),
+  );
+  const help = $('#aiHelp');
+  help.replaceChildren();
+  if (!a.installed) {
+    help.append(el('h3', {}, 'To connect it'),
+      el('ol', {},
+        el('li', {}, 'Install Claude Code: ', el('a', { href: a.installUrl, target: '_blank', rel: 'noopener' }, a.installUrl)),
+        el('li', {}, 'In a terminal, run ', el('code', {}, 'claude'), ' once and log in. (To use an API key instead, see the note below.)'),
+        el('li', {}, 'Run ', el('code', {}, 'npm run setup'), ' in the AI Task Desk folder, or just come back here and press "Test connection".')));
+  }
+}
+
+async function openAi() {
+  const a = (await refreshAi()) || state.ai;
+  if (!a) return;
+  $('#aiTestMsg').textContent = '';
+  renderAi(a);
+  if (!$('#aiDialog').open) $('#aiDialog').showModal();
+}
+
+$('#aiBtn').addEventListener('click', openAi);
+$('#aiBannerBtn').addEventListener('click', openAi);
+$('#aiClose').addEventListener('click', () => $('#aiDialog').close());
+$('#aiTestBtn').addEventListener('click', async () => {
+  const msg = $('#aiTestMsg');
+  const btn = $('#aiTestBtn');
+  msg.className = '';
+  msg.textContent = 'Testing... this can take up to a minute.';
+  btn.disabled = true;
+  try {
+    const r = await api('POST', 'api/ai/test', {});
+    msg.className = r.ok ? '' : 'error';
+    msg.textContent = r.ok ? 'It works. You can use "Work on it" now.' : `That did not work: ${r.why}`;
+  } catch (e) { msg.className = 'error'; msg.textContent = e.message; }
+  btn.disabled = false;
+  const a = await refreshAi();
+  if (a) renderAi(a);
+});
 
 $('#demoReset').addEventListener('click', async () => {
   if (!confirm('Reset the demo? Your changes are discarded and the sample tasks come back.')) return;

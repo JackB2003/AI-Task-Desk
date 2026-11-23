@@ -9,11 +9,12 @@ const cp = require('node:child_process');
 const readline = require('node:readline/promises');
 const { Writable } = require('node:stream');
 const C = require('./config');
+const AI = require('./aicheck');
 
 const CHECK_ONLY = process.argv.includes('--check');
 const ENV_FILE = path.join(C.ROOT, '.env');
 const CLAUDE_BIN = C.env.CLAUDE_BIN || 'claude';
-const INSTALL_URL = 'https://code.claude.com/docs/en/overview';
+const INSTALL_URL = AI.INSTALL_URL;
 
 const ok = (m) => console.log(`  [ok] ${m}`);
 const warn = (m) => console.log(`  [!!] ${m}`);
@@ -77,23 +78,8 @@ function nodeOk() {
   return maj > 22 || (maj === 22 && min >= 13);
 }
 
-function claudeVersion() {
-  const r = cp.spawnSync(CLAUDE_BIN, ['--version'], { encoding: 'utf8', timeout: 15000 });
-  return !r.error && r.status === 0 ? r.stdout.trim() : null;
-}
-
-// One tiny request, to prove the login (or API key) works. About 500 tokens.
-function claudeLoginWorks(useApiKey, apiKey) {
-  const env = { ...process.env };
-  if (useApiKey) { if (apiKey) env.ANTHROPIC_API_KEY = apiKey; } else { delete env.ANTHROPIC_API_KEY; delete env.ANTHROPIC_AUTH_TOKEN; }
-  const r = cp.spawnSync(CLAUDE_BIN, ['-p', 'Reply with the single word OK', '--tools', '', '--max-turns', '1', '--no-session-persistence', '--output-format', 'json'],
-    { encoding: 'utf8', timeout: 90000, env, cwd: C.ROOT });
-  if (r.error) return { ok: false, why: r.error.message };
-  let out = null;
-  try { out = JSON.parse(r.stdout); } catch { /* not json */ }
-  if (r.status === 0 && out && !out.is_error) return { ok: true };
-  return { ok: false, why: String((out && out.result) || r.stderr || r.stdout || `exit code ${r.status}`).trim().slice(0, 300) };
-}
+const claudeVersion = () => AI.version(CLAUDE_BIN);
+const claudeLoginWorks = (useApiKey, apiKey) => AI.testLogin({ apiMode: useApiKey, apiKey, bin: CLAUDE_BIN });
 
 function validTz(tz) { try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch { return false; } }
 
@@ -159,7 +145,7 @@ async function main() {
     if (useApi) updates.ANTHROPIC_API_KEY = apiKey;
     if (await yes('\n  Test that it works? This sends one tiny request (about 500 tokens).', true)) {
       process.stdout.write('  Testing... ');
-      const t = claudeLoginWorks(useApi, apiKey);
+      const t = await claudeLoginWorks(useApi, apiKey);
       if (t.ok) console.log('it works.');
       else {
         console.log('failed.');

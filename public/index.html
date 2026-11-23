@@ -50,6 +50,7 @@
           <p id="today" class="date"></p>
         </div>
         <div class="header-actions">
+          <button id="aiBtn" type="button" class="glass"><span id="aiDot" class="ai-dot" aria-hidden="true"></span>AI connection</button>
           <button id="briefingBtn" type="button" class="glass">Briefing preview</button>
           <button id="settingsBtn" type="button" class="glass">Settings</button>
         </div>
@@ -72,6 +73,10 @@
         <span id="agentChip" class="pill" hidden></span>
         <span id="usage5h" class="pill" hidden></span>
         <span id="usage7d" class="pill" hidden></span>
+      </div>
+      <div id="aiBanner" class="banner ai-banner" hidden>
+        <span>The AI agent is not connected yet, so "Work on it" will not run.</span>
+        <button id="aiBannerBtn" type="button" class="small">Connect your AI</button>
       </div>
       <div id="pauseBanner" class="banner" hidden></div>
       <div id="workerBanner" class="banner" hidden>The agent worker is not running, so agent tasks will wait until it is back.</div>
@@ -180,6 +185,26 @@
     <div class="row end">
       <button id="logoutBtn" type="button" hidden>Sign out</button>
       <button id="settingsClose" type="button">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="aiDialog">
+    <h2>Connect your AI</h2>
+    <p class="muted">The <b>Work on it</b> button hands a task to an AI agent. AI Task Desk uses <b>Claude Code</b> for that.</p>
+    <p id="aiDemoNote" class="muted" hidden><b>Demo:</b> the agent here is simulated, so these checks are pretend. On your own copy they are real.</p>
+    <ul id="aiChecks" class="ai-checks"></ul>
+    <div id="aiHelp" class="ai-help"></div>
+    <details class="ai-details">
+      <summary>Subscription or API key? Can I use another AI?</summary>
+      <p><b>Your Claude subscription (Pro or Max)</b>: the default. Runs use your plan's allowance. Log in once by running <code>claude</code> in a terminal.</p>
+      <p><b>Your own Anthropic API key</b>: billed per use by Anthropic. Set it up with <code>npm run setup</code>, or put <code>AGENT_AUTH=api</code> and <code>ANTHROPIC_API_KEY=...</code> in the <code>.env</code> file, then restart.</p>
+      <p><b>Other AIs</b> (ChatGPT, Gemini, local models) are not supported yet. Only Claude works today.</p>
+      <p class="muted">Your key or login never goes into this page. It stays on your machine.</p>
+    </details>
+    <p id="aiTestMsg" role="status"></p>
+    <div class="row end">
+      <button id="aiTestBtn" type="button" class="go">Test connection</button>
+      <button id="aiClose" type="button">Close</button>
     </div>
   </dialog>
 

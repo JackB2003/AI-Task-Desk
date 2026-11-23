@@ -18,6 +18,7 @@ const A = require('./agentlib');
 const F = require('./attach');
 const { openDb } = require('./db');
 const Auth = require('./auth');
+const AI = require('./aicheck');
 
 const { ROOT, env, TZ, PORT, HOST, DEMO } = C;
 const COOKIE_PATH = env.COOKIE_PATH || '/';
@@ -559,6 +560,47 @@ async function agentRoute(req, res, url, p, actor) {
   return false; // not an agent route
 }
 
+// ---------- AI connection (the "AI connection" screen) ----------
+
+let aiVersionCache = null; // { at, version }: checking the install takes a moment, so remember it for 30 seconds
+let aiTestBusy = false;
+let aiTestLast = 0;
+
+function aiStatus() {
+  if (S()) {
+    return { demo: true, installed: true, version: 'simulated', mode: 'subscription', apiKeySet: false, workspace: 'workspace/', worker_ok: true, installUrl: AI.INSTALL_URL,
+      tested: S().aiTested ? { at: nowIso(), ok: true, simulated: true } : null };
+  }
+  if (!aiVersionCache || Date.now() - aiVersionCache.at > 30000) aiVersionCache = { at: Date.now(), version: AI.version() };
+  const beat = getSetting('worker_heartbeat');
+  return {
+    demo: false, installed: !!aiVersionCache.version, version: aiVersionCache.version,
+    mode: AI.useApiKey() ? 'api' : 'subscription', apiKeySet: !!env.ANTHROPIC_API_KEY,
+    workspace: C.WORKSPACE, worker_ok: !!beat && Date.now() - Date.parse(beat) < 60000, installUrl: AI.INSTALL_URL,
+    tested: safeParse(getSetting('ai_test'), null),
+  };
+}
+
+async function aiTest() {
+  if (S()) {
+    await new Promise((r) => setTimeout(r, 900)); // pretend to think
+    S().aiTested = true;
+    return { ok: true, simulated: true };
+  }
+  aiVersionCache = null;
+  if (!AI.version()) throw new HttpError(409, `Claude Code was not found (looked for "${AI.CLAUDE_BIN}"). Install it first, then test again.`);
+  if (aiTestBusy) throw new HttpError(409, 'A test is already running. Give it a moment.');
+  if (Date.now() - aiTestLast < 10000) throw new HttpError(429, 'Please wait a few seconds between tests.');
+  aiTestBusy = true;
+  aiTestLast = Date.now();
+  try {
+    const r = await AI.testLogin();
+    const out = { at: nowIso(), ok: r.ok, ...(r.ok ? {} : { why: r.why }) };
+    setSetting('ai_test', JSON.stringify(out));
+    return out;
+  } finally { aiTestBusy = false; }
+}
+
 // ---------- browser API ----------
 
 async function uiRoute(req, res, ip, url, p) {
@@ -607,6 +649,9 @@ async function uiRoute(req, res, ip, url, p) {
     demoMgr.reset(S());
     return send(res, 200, { ok: true });
   }
+
+  if (p === '/api/ai/status' && req.method === 'GET') return send(res, 200, aiStatus());
+  if (p === '/api/ai/test' && req.method === 'POST') return send(res, 200, await aiTest());
 
   if (p === '/api/password' && req.method === 'POST') {
     if (DEMO) throw new HttpError(403, NOT_IN_DEMO);
